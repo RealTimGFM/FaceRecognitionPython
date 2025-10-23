@@ -1,0 +1,16 @@
+name: hourly-cleanup
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  call-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /tasks/cleanup
+        run: |
+          curl -fsS -X POST \
+            -H "X-Task-Token: ${{ secrets.TASK_TOKEN }}" \
+            "${{ secrets.APP_URL }}/tasks/cleanup"
