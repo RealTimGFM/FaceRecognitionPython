@@ -22,8 +22,6 @@ services:
   - type: cron
     name: facerecog-cleaner
     schedule: "0 * * * *"
-    env: docker
-    plan: free
     startCommand: >-
       bash -lc 'curl -fsS -X POST -H "X-Task-Token: $TASK_TOKEN" "$APP_URL/tasks/cleanup"'
     envVars:
