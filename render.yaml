@@ -18,14 +18,3 @@ services:
         fromDatabase:
           name: facerecog-db
           property: connectionString
-
-  - type: cron
-    name: facerecog-cleaner
-    schedule: "0 * * * *"
-    startCommand: >-
-      bash -lc 'curl -fsS -X POST -H "X-Task-Token: $TASK_TOKEN" "$APP_URL/tasks/cleanup"'
-    envVars:
-      - key: APP_URL
-        sync: false
-      - key: TASK_TOKEN
-        sync: false
