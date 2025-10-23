@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="header">
+    <div class="title">Setup Face ID</div>
+    <span class="muted">Capture a clear frame</span>
+  </div>
+
+  <div class="media" style="max-width:640px">
+    <video id="video" class="video" autoplay playsinline></video>
+  </div>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <div class="row" style="margin-top:12px">
+    <button id="btnStart" class="btn">Start Camera</button>
+    <button id="btnCapture" class="btn btn-primary">Capture & Save</button>
+  </div>
+</section>
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const btnStart = document.getElementById('btnStart');
+  const btnCapture = document.getElementById('btnCapture');
+
+  async function startCamera() {
+    // Ask for a decent size but we’ll ALWAYS use the camera’s actual size when saving
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    video.srcObject = stream;
+
+    // Wait until metadata is loaded so video.videoWidth/Height are available
+    await new Promise(res => {
+      if (video.readyState >= 1) return res();
+      video.onloadedmetadata = () => res();
+    });
+  }
+
+  btnStart.addEventListener('click', startCamera);
+
+  btnCapture.addEventListener('click', async () => {
+    // Use the camera’s REAL frame size -> no stretching
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) {
+      alert('Camera not ready yet. Click Start Camera first.');
+      return;
+    }
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, w, h);
+
+    // PNG keeps pixels 1:1
+    const dataUrl = canvas.toDataURL('image/png');
+
+    const res = await fetch('{{ url_for("setupfaceid") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const j = await res.json();
+    if (j.ok) {
+      location.href = '{{ url_for("index") }}';
+    } else {
+      alert('Error: ' + (j.error || 'unknown'));
+    }
+  });
+</script>
+
+{% endblock %}

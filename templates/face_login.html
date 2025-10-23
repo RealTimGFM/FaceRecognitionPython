@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="header">
+    <div class="title">Face Login</div>
+    <span class="muted">Models must exist in <code>/static/models</code></span>
+  </div>
+
+  <div class="media" style="max-width:640px">
+    <video id="video" class="video" autoplay playsinline width="640" height="360"></video>
+  </div>
+
+  <p id="status" class="subtle" style="margin-top:10px">Loading models…</p>
+</section>
+
+<script>
+  const statusEl = document.getElementById('status');
+  const video = document.getElementById('video');
+
+  function setStatus(t) { statusEl.textContent = t; }
+
+  window.addEventListener('load', () => start().catch(err => setStatus('Error: ' + err.message)));
+
+  async function start() {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('/static/models'),
+      faceapi.nets.faceRecognitionNet.loadFromUri('/static/models'),
+      faceapi.nets.faceLandmark68Net.loadFromUri('/static/models')
+    ]);
+
+    setStatus('Models loaded. Starting camera…');
+    await startCamera();
+
+    setStatus('Building labeled descriptors…');
+    const matcher = await buildMatcher();
+    if (!matcher) { return; }
+    setStatus('Ready. Looking for a face…');
+
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
+
+    setInterval(async () => {
+      const result = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
+      if (!result) return;
+      const best = matcher.findBestMatch(result.descriptor);
+      if (best && best.label !== 'unknown' && best.distance < 0.58) {
+        setStatus(`Matched: ${best.label} (d=${best.distance.toFixed(2)}) — logging in…`);
+        const resp = await fetch('/login-face', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: best.label })
+        });
+        const j = await resp.json();
+        if (j.ok) location.href = '/';
+        else setStatus('Server refused login: ' + (j.error || 'unknown'));
+      }
+    }, 500);
+  }
+
+  async function startCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = stream;
+  }
+
+  async function buildMatcher() {
+    const res = await fetch('/api/labels');
+    const labels = await res.json();
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
+
+    const labeled = [];
+    for (const item of labels) {
+      try {
+        const img = await faceapi.fetchImage(item.image_url);
+        const det = await faceapi.detectSingleFace(img, opts).withFaceLandmarks().withFaceDescriptor();
+        if (det) labeled.push(new faceapi.LabeledFaceDescriptors(item.username, [det.descriptor]));
+        else console.warn('No face in', item.image_url);
+      } catch (e) {
+        console.warn('Failed label', item, e);
+      }
+    }
+    if (!labeled.length) {
+      setStatus('No labeled faces found. Go to "Setup Face ID" first.');
+      return null;
+    }
+    return new faceapi.FaceMatcher(labeled, 0.58);
+  }
+</script>
+{% endblock %}

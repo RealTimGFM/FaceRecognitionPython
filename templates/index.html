@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid cols-2">
+    <section class="card">
+        <div class="header">
+            <div class="title">Welcome, {{ user.username }} 👋</div>
+            {% if user.face_image %}
+            <span class="badge ok">Face ID ready</span>
+            {% else %}
+            <span class="badge warn">No Face ID</span>
+            {% endif %}
+        </div>
+
+        {% if user.face_image %}
+        <div class="media" style="max-width:300px">
+            <img src="/{{ user.face_image }}" alt="Your face image" style="display:block;width:100%;height:auto;">
+        </div>
+        <div class="row" style="margin-top:12px">
+            <a class="btn" href="{{ url_for('face_login_page') }}">Try Face Login</a>
+            <a class="btn btn-ghost" href="{{ url_for('setupfaceid') }}">Re-capture</a>
+        </div>
+        {% else %}
+        <p class="subtle">Set up Face ID to enable one-click sign-in.</p>
+        <a class="btn btn-primary" href="{{ url_for('setupfaceid') }}">Setup Face ID</a>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="header">
+            <div class="title">Tips</div>
+            <span class="muted">Best results</span>
+        </div>
+        <ul class="subtle">
+            <li>Good lighting, face centered</li>
+            <li>Remove large obstructions (mask, big hat)</li>
+            <li>Take multiple captures over time (you can re-capture)</li>
+        </ul>
+    </section>
+</div>
+{% endblock %}

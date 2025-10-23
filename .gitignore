@@ -1,0 +1,4 @@
+*.png
+dump_project.py
+dump.txt
+app.db

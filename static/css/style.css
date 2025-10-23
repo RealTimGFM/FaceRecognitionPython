@@ -1,0 +1,282 @@
+:root {
+    color-scheme: light dark;
+    --bg: #0b0b11;
+    --bg-2: #11121a;
+    --surface: #161823;
+    --card: #1b1e2b;
+    --text: #e9eaf1;
+    --muted: #a3a9be;
+    --brand: #6aa5ff;
+    --brand-2: #8b5cf6;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --err: #ef4444;
+    --ring: #2643ff33;
+    --border: #2a2f42;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg: #f6f7fb;
+        --bg-2: #eef0f7;
+        --surface: #ffffff;
+        --card: #ffffff;
+        --text: #17181e;
+        --muted: #5a6072;
+        --brand: #345bff;
+        --brand-2: #7c4dff;
+        --border: #e8eaf3;
+        --shadow: 0 10px 30px rgba(10, 20, 60, .10);
+    }
+}
+
+* {
+    box-sizing: border-box
+}
+
+html,
+body {
+    height: 100%
+}
+
+body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background:
+        radial-gradient(1200px 600px at 10% -10%, color-mix(in oklab, var(--brand) 18%, transparent), transparent),
+        radial-gradient(1000px 500px at 100% 0%, color-mix(in oklab, var(--brand-2) 15%, transparent), transparent),
+        var(--bg);
+    color: var(--text);
+}
+
+.wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px
+}
+
+.nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: saturate(1.2) blur(10px);
+    background: color-mix(in oklab, var(--bg-2) 70%, transparent 30%);
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px
+}
+
+.brand {
+    font-weight: 700;
+    letter-spacing: .3px
+}
+
+.brand a {
+    color: var(--text);
+    text-decoration: none
+}
+
+.nav-links {
+    margin-left: auto;
+    display: flex;
+    gap: 14px
+}
+
+.nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 10px
+}
+
+.nav a:hover {
+    background: color-mix(in oklab, var(--brand) 8%, transparent);
+    color: var(--text)
+}
+
+.page {
+    padding: 28px 0 48px;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0 0 12px
+}
+
+.subtle {
+    color: var(--muted)
+}
+
+code {
+    background: color-mix(in oklab, var(--surface) 80%, transparent);
+    padding: .2em .45em;
+    border-radius: 8px
+}
+
+.grid {
+    display: grid;
+    gap: 16px
+}
+
+@media (min-width:720px) {
+    .grid.cols-2 {
+        grid-template-columns: 1fr 1fr
+    }
+}
+
+.card {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--card) 96%, transparent), var(--card));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px;
+}
+
+.card .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px
+}
+
+.card .title {
+    font-weight: 700
+}
+
+.card .muted {
+    color: var(--muted);
+    font-size: .95rem
+}
+
+.form {
+    display: grid;
+    gap: 12px;
+    max-width: 440px
+}
+
+label {
+    font-weight: 600
+}
+
+.input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: box-shadow .15s, border-color .15s;
+}
+
+.input:focus {
+    box-shadow: 0 0 0 6px var(--ring);
+    border-color: color-mix(in oklab, var(--brand) 35%, var(--border))
+}
+
+.row {
+    display: flex;
+    gap: 10px;
+    align-items: center
+}
+
+.btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 90%, transparent), var(--surface));
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform .05s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px)
+}
+
+.btn:active {
+    transform: translateY(0)
+}
+
+.btn-primary {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--brand) 30%, var(--surface)), var(--surface));
+    border-color: color-mix(in oklab, var(--brand) 60%, var(--border))
+}
+
+.btn-danger {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--err) 35%, var(--surface)), var(--surface));
+    border-color: color-mix(in oklab, var(--err) 60%, var(--border))
+}
+
+.btn-ghost {
+    background: transparent
+}
+
+.media {
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface)
+}
+
+.video {
+    display: block;
+    width: 100%;
+    height: auto
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: .35rem .6rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: .85rem
+}
+
+.badge.ok {
+    background: color-mix(in oklab, var(--ok) 20%, transparent);
+    color: color-mix(in oklab, var(--ok) 95%, white)
+}
+
+.badge.warn {
+    background: color-mix(in oklab, var(--warn) 20%, transparent);
+    color: color-mix(in oklab, var(--warn) 90%, white)
+}
+
+.badge.err {
+    background: color-mix(in oklab, var(--err) 20%, transparent);
+    color: color-mix(in oklab, var(--err) 90%, white)
+}
+
+.flash {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px
+}
+
+.flash li {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface)
+}
+
+.flash li.error {
+    border-color: color-mix(in oklab, var(--err) 50%, var(--border))
+}
+
+.flash li.success {
+    border-color: color-mix(in oklab, var(--ok) 50%, var(--border))
+}
