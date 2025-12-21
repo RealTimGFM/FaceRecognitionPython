@@ -41,6 +41,25 @@ def _select_config():
         return DevelopmentConfig
     return ProductionConfig
 
+def _normalize_database_url(url: str) -> str:
+    """
+    Normalize DATABASE_URL for SQLAlchemy + psycopg v3.
+
+    - Render often provides postgres://... (deprecated scheme)
+    - SQLAlchemy defaults postgresql:// to psycopg2 unless driver specified
+    - We force psycopg v3 by using postgresql+psycopg://
+    """
+    url = url.strip()
+
+    # Render legacy scheme
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+
+    # Force psycopg v3 driver
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+    return url
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -49,7 +68,9 @@ def create_app() -> Flask:
 
     # ---- Database config ----
     db_url = os.environ.get("DATABASE_URL")
-    if not db_url:
+    if db_url:
+        db_url = _normalize_database_url(db_url)
+    else:
         db_url = f"sqlite:///{BASE_DIR / 'app.db'}"
 
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
