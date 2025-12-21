@@ -1,5 +1,0 @@
-Metadata-Version: 2.4
-Name: facerecog-web
-Version: 0.1.0
-Summary: Face recognition Flask web app (FaceID v2 modules)
-Requires-Python: >=3.9
