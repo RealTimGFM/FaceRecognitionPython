@@ -3,7 +3,7 @@
 <section class="card">
   <div class="header">
     <div class="title">Setup Face ID</div>
-    <span class="muted">Capture a clear frame</span>
+    <span class="muted">Capture 3–5 samples in good lighting</span>
   </div>
 
   <div class="media" style="max-width:640px">
@@ -14,61 +14,119 @@
 
   <div class="row" style="margin-top:12px">
     <button id="btnStart" class="btn">Start Camera</button>
-    <button id="btnCapture" class="btn btn-primary">Capture & Save</button>
+    <button id="btnCapture" class="btn btn-primary" disabled>Capture Sample</button>
+    <button id="btnSave" class="btn" disabled>Save Face ID</button>
   </div>
+
+  <p id="status" class="subtle" style="margin-top:10px">Loading models…</p>
 </section>
 
 <script>
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
+
   const btnStart = document.getElementById('btnStart');
   const btnCapture = document.getElementById('btnCapture');
+  const btnSave = document.getElementById('btnSave');
+  const statusEl = document.getElementById('status');
 
-  async function startCamera() {
-    // Ask for a decent size but we’ll ALWAYS use the camera’s actual size when saving
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    });
-    video.srcObject = stream;
+  let samples = [];
 
-    // Wait until metadata is loaded so video.videoWidth/Height are available
-    await new Promise(res => {
-      if (video.readyState >= 1) return res();
-      video.onloadedmetadata = () => res();
-    });
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  async function loadModels() {
+    const base = '/static/models';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(base);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(base);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(base);
   }
 
-  btnStart.addEventListener('click', startCamera);
+  async function startCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = stream;
+    await video.play();
+  }
+
+  async function captureDescriptor() {
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+    const det = await faceapi
+      .detectSingleFace(video, opts)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!det) return null;
+    return Array.from(det.descriptor);
+  }
+
+  function captureImageDataUrl() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL('image/png');
+  }
+
+  (async () => {
+    try {
+      await loadModels();
+      setStatus('Models loaded. Click “Start Camera”.');
+    } catch (e) {
+      setStatus('Error loading models. Make sure /static/models exists.');
+    }
+  })();
+
+  btnStart.addEventListener('click', async () => {
+    try {
+      await startCamera();
+      samples = [];
+      btnCapture.disabled = false;
+      btnSave.disabled = true;
+      setStatus('Camera started. Capture at least 3 samples.');
+    } catch (e) {
+      setStatus('Camera permission denied or unavailable.');
+    }
+  });
 
   btnCapture.addEventListener('click', async () => {
-    // Use the camera’s REAL frame size -> no stretching
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (!w || !h) {
-      alert('Camera not ready yet. Click Start Camera first.');
+    const d = await captureDescriptor();
+    if (!d) {
+      setStatus('No face detected. Center your face and try again.');
       return;
     }
-    canvas.width = w;
-    canvas.height = h;
 
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(video, 0, 0, w, h);
+    samples.push(d);
 
-    // PNG keeps pixels 1:1
-    const dataUrl = canvas.toDataURL('image/png');
+    if (samples.length >= 3) {
+      btnSave.disabled = false;
+      setStatus(`Captured sample ${samples.length}. Ready to save.`);
+    } else {
+      setStatus(`Captured sample ${samples.length}. Need at least 3.`);
+    }
+  });
 
+  btnSave.addEventListener('click', async () => {
+    if (samples.length < 3) {
+      setStatus('Need at least 3 samples before saving.');
+      return;
+    }
+
+    const image = captureImageDataUrl();
+
+    setStatus('Saving…');
     const res = await fetch('{{ url_for("setupfaceid") }}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: dataUrl })
+      body: JSON.stringify({ image, embeddings: samples })
     });
+
     const j = await res.json();
-    if (j.ok) {
-      location.href = '{{ url_for("index") }}';
-    } else {
-      alert('Error: ' + (j.error || 'unknown'));
+    if (res.ok && j.ok) {
+      setStatus('Saved. Redirecting…');
+      window.location.href = '{{ url_for("index") }}';
+      return;
     }
+
+    setStatus('Error: ' + (j.error || 'unknown'));
   });
 </script>
 

@@ -9,14 +9,12 @@ on:
     - cron: "30 12 * * 2" # Tuesdays 12:30 UTC
 
 permissions:
-  security-events: write
   contents: read
+  security-events: write
 
 jobs:
   analyze:
-    name: Analyze (Python)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,9 +23,6 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

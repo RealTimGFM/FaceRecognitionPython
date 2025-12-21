@@ -3,85 +3,177 @@
 <section class="card">
   <div class="header">
     <div class="title">Face Login</div>
-    <span class="muted">Models must exist in <code>/static/models</code></span>
+    <span class="muted">Enter your username, then complete the liveness movement</span>
   </div>
 
-  <div class="media" style="max-width:640px">
+  <div class="row" style="margin-top:10px">
+    <input id="username" class="input" placeholder="Username" autocomplete="username" />
+    <button id="btnStart" class="btn">Start Camera</button>
+    <button id="btnLogin" class="btn btn-primary" disabled>Login with Face ID</button>
+  </div>
+
+  <div class="media" style="max-width:640px; margin-top:12px">
     <video id="video" class="video" autoplay playsinline width="640" height="360"></video>
   </div>
 
-  <p id="status" class="subtle" style="margin-top:10px">Loading models…</p>
+  <p id="challenge" class="subtle" style="margin-top:10px"></p>
+  <p id="status" class="subtle" style="margin-top:6px">Loading models…</p>
 </section>
 
 <script>
-  const statusEl = document.getElementById('status');
   const video = document.getElementById('video');
+  const statusEl = document.getElementById('status');
+  const challengeEl = document.getElementById('challenge');
 
-  function setStatus(t) { statusEl.textContent = t; }
+  const usernameEl = document.getElementById('username');
+  const btnStart = document.getElementById('btnStart');
+  const btnLogin = document.getElementById('btnLogin');
 
-  window.addEventListener('load', () => start().catch(err => setStatus('Error: ' + err.message)));
+  let challengeToken = null;
+  let challengeDir = null;
+  let baselineNoseX = null;
+  let livenessPassed = false;
 
-  async function start() {
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri('/static/models'),
-      faceapi.nets.faceRecognitionNet.loadFromUri('/static/models'),
-      faceapi.nets.faceLandmark68Net.loadFromUri('/static/models')
-    ]);
+  function setStatus(msg) { statusEl.textContent = msg; }
+  function setChallenge(msg) { challengeEl.textContent = msg; }
 
-    setStatus('Models loaded. Starting camera…');
-    await startCamera();
-
-    setStatus('Building labeled descriptors…');
-    const matcher = await buildMatcher();
-    if (!matcher) { return; }
-    setStatus('Ready. Looking for a face…');
-
-    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
-
-    setInterval(async () => {
-      const result = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
-      if (!result) return;
-      const best = matcher.findBestMatch(result.descriptor);
-      if (best && best.label !== 'unknown' && best.distance < 0.58) {
-        setStatus(`Matched: ${best.label} (d=${best.distance.toFixed(2)}) — logging in…`);
-        const resp = await fetch('/login-face', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: best.label })
-        });
-        const j = await resp.json();
-        if (j.ok) location.href = '/';
-        else setStatus('Server refused login: ' + (j.error || 'unknown'));
-      }
-    }, 500);
+  async function loadModels() {
+    const base = '/static/models';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(base);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(base);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(base);
   }
 
   async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     video.srcObject = stream;
+    await video.play();
   }
 
-  async function buildMatcher() {
-    const res = await fetch('/api/labels');
-    const labels = await res.json();
-    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
+  async function fetchChallenge() {
+    const r = await fetch('/api/faceid/challenge');
+    const j = await r.json();
+    challengeToken = j.token;
+    challengeDir = j.direction;
+    baselineNoseX = null;
+    livenessPassed = false;
 
-    const labeled = [];
-    for (const item of labels) {
-      try {
-        const img = await faceapi.fetchImage(item.image_url);
-        const det = await faceapi.detectSingleFace(img, opts).withFaceLandmarks().withFaceDescriptor();
-        if (det) labeled.push(new faceapi.LabeledFaceDescriptors(item.username, [det.descriptor]));
-        else console.warn('No face in', item.image_url);
-      } catch (e) {
-        console.warn('Failed label', item, e);
-      }
-    }
-    if (!labeled.length) {
-      setStatus('No labeled faces found. Go to "Setup Face ID" first.');
-      return null;
-    }
-    return new faceapi.FaceMatcher(labeled, 0.58);
+    btnLogin.disabled = true;
+    setChallenge(`Liveness check: move your head to the ${challengeDir.toUpperCase()} (within 45s).`);
   }
+
+  async function captureDescriptorWithLandmarks() {
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+    const det = await faceapi
+      .detectSingleFace(video, opts)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!det) return null;
+    return { descriptor: Array.from(det.descriptor), landmarks: det.landmarks };
+  }
+
+  function noseTipX(landmarks) {
+    const nose = landmarks.getNose();
+    const p = nose && nose[3];
+    return p ? p.x : null;
+  }
+
+  async function livenessLoop() {
+    if (!challengeDir || livenessPassed) return;
+
+    const pack = await captureDescriptorWithLandmarks();
+    if (!pack) {
+      requestAnimationFrame(livenessLoop);
+      return;
+    }
+
+    const x = noseTipX(pack.landmarks);
+    if (x == null) {
+      requestAnimationFrame(livenessLoop);
+      return;
+    }
+
+    if (baselineNoseX == null) baselineNoseX = x;
+
+    const delta = x - baselineNoseX;
+    const thresholdPx = 18;
+
+    if (challengeDir === 'left' && delta < -thresholdPx) livenessPassed = true;
+    if (challengeDir === 'right' && delta > thresholdPx) livenessPassed = true;
+
+    if (livenessPassed) {
+      setChallenge('Liveness passed.');
+      btnLogin.disabled = false;
+      return;
+    }
+
+    requestAnimationFrame(livenessLoop);
+  }
+
+  (async () => {
+    try {
+      await loadModels();
+      setStatus('Models loaded. Enter username and click “Start Camera”.');
+    } catch (e) {
+      setStatus('Error loading models. Make sure /static/models exists.');
+    }
+  })();
+
+  btnStart.addEventListener('click', async () => {
+    const userId = (usernameEl.value || '').trim();
+    if (!userId) {
+      setStatus('Enter your username first.');
+      return;
+    }
+
+    try {
+      await startCamera();
+      await fetchChallenge();
+      setStatus('Camera started. Complete the liveness movement.');
+      requestAnimationFrame(livenessLoop);
+    } catch (e) {
+      setStatus('Camera permission denied or unavailable.');
+    }
+  });
+
+  btnLogin.addEventListener('click', async () => {
+    const userId = (usernameEl.value || '').trim();
+    if (!userId) {
+      setStatus('Enter your username first.');
+      return;
+    }
+    if (!challengeToken || !livenessPassed) {
+      setStatus('Start camera and complete liveness first.');
+      return;
+    }
+
+    const pack = await captureDescriptorWithLandmarks();
+    if (!pack) {
+      setStatus('No face detected. Try again.');
+      return;
+    }
+
+    setStatus('Verifying…');
+    const r = await fetch('/api/faceid/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        embedding: pack.descriptor,
+        challenge_token: challengeToken,
+        challenge_passed: true
+      })
+    });
+
+    const j = await r.json();
+    if (r.ok && j.status === 'ok') {
+      window.location.href = '/faceid/complete';
+      return;
+    }
+
+    setStatus('Login failed: ' + (j.error || 'unknown'));
+  });
 </script>
+
 {% endblock %}

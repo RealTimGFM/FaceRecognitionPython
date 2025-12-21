@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+faceid/__init__.py
+faceid/api.py
+faceid/math.py
+faceid/profile.py
+faceid/store.py
+facerecog_web.egg-info/PKG-INFO
+facerecog_web.egg-info/SOURCES.txt
+facerecog_web.egg-info/dependency_links.txt
+facerecog_web.egg-info/top_level.txt
+tests/test_faceid_api.py
+tests/test_faceid_math.py
+tests/test_faceid_profile.py
+tests/test_faceid_store.py
