@@ -6,19 +6,26 @@
     <span class="muted">Capture 3–5 samples in good lighting</span>
   </div>
 
-  <div class="media" style="max-width:640px">
+  <div class="media wide">
     <video id="video" class="video" autoplay playsinline></video>
   </div>
 
   <canvas id="canvas" style="display:none;"></canvas>
 
-  <div class="row" style="margin-top:12px">
+  <div class="row mt-12">
     <button id="btnStart" class="btn">Start Camera</button>
     <button id="btnCapture" class="btn btn-primary" disabled>Capture Sample</button>
     <button id="btnSave" class="btn" disabled>Save Face ID</button>
+    <div class="row between mt-12">
+      <div class="muted">Samples: <span id="samplesCount">0</span>/3</div>
+      <div class="progress" aria-label="Enrollment progress">
+        <div id="samplesBar" class="bar"></div>
+      </div>
+    </div>
+
   </div>
 
-  <p id="status" class="subtle" style="margin-top:10px">Loading models…</p>
+  <p id="status" class="muted mt-10">.Loading models…</p>
 </section>
 
 <script>
@@ -31,6 +38,16 @@
   const statusEl = document.getElementById('status');
 
   let samples = [];
+  const MIN_SAMPLES = 3;
+  const samplesCountEl = document.getElementById("samplesCount");
+  const samplesBarEl = document.getElementById("samplesBar");
+
+  function updateProgress() {
+    const n = samples.length;
+    if (samplesCountEl) samplesCountEl.textContent = String(n);
+    if (samplesBarEl) samplesBarEl.style.width = `${Math.min(100, (n / MIN_SAMPLES) * 100)}%`;
+  }
+  updateProgress();
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -95,6 +112,7 @@
     }
 
     samples.push(d);
+    updateProgress();
 
     if (samples.length >= 3) {
       btnSave.disabled = false;
