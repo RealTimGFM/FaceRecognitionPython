@@ -96,6 +96,9 @@ def create_app() -> Flask:
 
     def is_logged_in() -> bool:
         return bool(session.get("user_id"))
+    @app.get("/healthz")
+    def healthz():
+        return {"ok": True}, 200
 
     @app.route("/")
     def index():

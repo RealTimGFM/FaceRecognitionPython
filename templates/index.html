@@ -1,40 +1,91 @@
+{# templates/index.html #}
 {% extends "base.html" %}
 {% block content %}
+
+{% if user %}
 <div class="grid cols-2">
+    <!-- Main / Status -->
     <section class="card">
         <div class="header">
-            <div class="title">Welcome, {{ user.username }} 👋</div>
+            <div>
+                <div class="title">Welcome, {{ user.username }}</div>
+                <div class="muted">Password login + Face ID login (in-browser)</div>
+            </div>
+
             {% if user.face_image %}
             <span class="badge ok">Face ID ready</span>
             {% else %}
-            <span class="badge warn">No Face ID</span>
+            <span class="badge warn">Face ID not set</span>
             {% endif %}
         </div>
 
         {% if user.face_image %}
-        <div class="media" style="max-width:300px">
-            <img src="/{{ user.face_image }}" alt="Your face image" style="display:block;width:100%;height:auto;">
+        <div class="media" style="max-width:320px">
+            <img src="/{{ user.face_image }}" alt="Your Face ID preview" style="display:block;width:100%;height:auto;">
         </div>
-        <div class="row" style="margin-top:12px">
-            <a class="btn" href="{{ url_for('face_login_page') }}">Try Face Login</a>
-            <a class="btn btn-ghost" href="{{ url_for('setupfaceid') }}">Re-capture</a>
+
+        <div class="row" style="margin-top:12px;flex-wrap:wrap;">
+            <a class="btn btn-primary" href="{{ url_for('face_login_page') }}">Try Face Login</a>
+            <a class="btn" href="{{ url_for('setupfaceid') }}">Re-capture Face ID</a>
+            <a class="btn btn-ghost" href="{{ url_for('logout') }}">Logout</a>
         </div>
         {% else %}
-        <p class="subtle">Set up Face ID to enable one-click sign-in.</p>
-        <a class="btn btn-primary" href="{{ url_for('setupfaceid') }}">Setup Face ID</a>
+        <p class="subtle">Set up Face ID to enable quick sign-in from your camera.</p>
+
+        <div class="row" style="margin-top:12px;flex-wrap:wrap;">
+            <a class="btn btn-primary" href="{{ url_for('setupfaceid') }}">Setup Face ID</a>
+            <a class="btn" href="{{ url_for('face_login_page') }}">Try Face Login</a>
+            <a class="btn btn-ghost" href="{{ url_for('logout') }}">Logout</a>
+        </div>
         {% endif %}
     </section>
 
+    <!-- Tips / Best Practices -->
     <section class="card">
         <div class="header">
-            <div class="title">Tips</div>
-            <span class="muted">Best results</span>
+            <div>
+                <div class="title">Tips</div>
+                <div class="muted">Best results for Face ID</div>
+            </div>
+            <span class="badge">Guide</span>
         </div>
-        <ul class="subtle">
-            <li>Good lighting, face centered</li>
-            <li>Remove large obstructions (mask, big hat)</li>
-            <li>Take multiple captures over time (you can re-capture)</li>
+
+        <ul class="subtle" style="margin:0;padding-left:18px;">
+            <li>Use good lighting and keep your face centered.</li>
+            <li>Avoid big obstructions (mask, large hat, heavy shadows).</li>
+            <li>Enroll 3–5 samples with small angle changes.</li>
+            <li>If Face Login fails, re-capture in better lighting.</li>
         </ul>
+
+        <div class="divider"></div>
+
+        <div class="muted" style="font-size:13px;">
+            Note: On free hosting, Face ID profiles may reset if the storage directory is ephemeral.
+        </div>
     </section>
 </div>
+
+{% else %}
+<!-- Logged out "hero" -->
+<section class="card">
+    <div class="header">
+        <div>
+            <div class="title">Face Recognition Web App</div>
+            <div class="muted">Login with password or Face ID (face-api.js in the browser)</div>
+        </div>
+        <span class="badge ok">Live</span>
+    </div>
+
+    <p class="subtle" style="margin-top:6px;">
+        Create an account, enroll your Face ID, then sign in using your camera.
+    </p>
+
+    <div class="row" style="margin-top:12px;flex-wrap:wrap;">
+        <a class="btn btn-primary" href="{{ url_for('register') }}">Create account</a>
+        <a class="btn" href="{{ url_for('login') }}">Login</a>
+        <a class="btn btn-ghost" href="{{ url_for('face_login_page') }}">Face Login</a>
+    </div>
+</section>
+{% endif %}
+
 {% endblock %}
