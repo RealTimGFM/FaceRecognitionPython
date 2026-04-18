@@ -5,6 +5,7 @@ import shutil
 import base64
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, abort
 from flask_sqlalchemy import SQLAlchemy
@@ -41,6 +42,7 @@ def _select_config():
         return DevelopmentConfig
     return ProductionConfig
 
+
 def _normalize_database_url(url: str) -> str:
     """
     Normalize DATABASE_URL for SQLAlchemy + psycopg v3.
@@ -48,18 +50,65 @@ def _normalize_database_url(url: str) -> str:
     - Render often provides postgres://... (deprecated scheme)
     - SQLAlchemy defaults postgresql:// to psycopg2 unless driver specified
     - We force psycopg v3 by using postgresql+psycopg://
+    - Neon requires SSL; we add safe defaults if they are missing
     """
     url = url.strip()
+    parts = urlsplit(url)
 
-    # Render legacy scheme
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+    scheme = parts.scheme
+    if scheme not in {"postgres", "postgresql", "postgresql+psycopg"}:
+        return url
 
-    # Force psycopg v3 driver
-    if url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if scheme == "postgres":
+        scheme = "postgresql"
+    if scheme == "postgresql":
+        scheme = "postgresql+psycopg"
 
-    return url
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    hostname = (parts.hostname or "").lower()
+
+    if "neon.tech" in hostname:
+        query.setdefault("sslmode", "require")
+        query.setdefault("channel_binding", "require")
+
+    return urlunsplit((
+        scheme,
+        parts.netloc,
+        parts.path,
+        urlencode(query, doseq=True),
+        parts.fragment,
+    ))
+
+
+def _build_engine_options(db_url: str) -> dict:
+    """
+    Apply resilient Postgres settings for hosted databases.
+
+    - pool_pre_ping helps recover after Neon/Render idle disconnects
+    - prepare_threshold=None avoids server-side prepared statement issues
+      with Neon pooled connections
+    """
+    if not db_url.startswith("postgresql+psycopg://"):
+        return {}
+
+    options = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+
+    hostname = (urlsplit(db_url).hostname or "").lower()
+    if "neon.tech" in hostname:
+        options["connect_args"] = {"prepare_threshold": None}
+
+    return options
+
+
+def _resolve_database_url() -> str:
+    db_url = os.environ.get("NEON_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not db_url:
+        return f"sqlite:///{BASE_DIR / 'app.db'}"
+    return _normalize_database_url(db_url)
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -67,13 +116,11 @@ def create_app() -> Flask:
     app.config.from_object(cfg)
 
     # ---- Database config ----
-    db_url = os.environ.get("DATABASE_URL")
-    if db_url:
-        db_url = _normalize_database_url(db_url)
-    else:
-        db_url = f"sqlite:///{BASE_DIR / 'app.db'}"
-
+    db_url = _resolve_database_url()
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    engine_options = _build_engine_options(db_url)
+    if engine_options:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
 
     # ---- FaceID store dir ----
     store_dir = os.environ.get("FACEID_STORE_DIR")

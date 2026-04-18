@@ -8,3 +8,6 @@ __pycache__/
 *.egg-info/
 instance/faceid_store/
 app.db
+.env
+.env.*
+!.env.example

@@ -54,7 +54,17 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2) Run the server
+### 2) Add local secrets to `.env`
+Create a local `.env` in the repo root. A safe template is included as `.env.example`.
+
+Typical values:
+- `SECRET_KEY`
+- `TASK_TOKEN`
+- `NEON_DATABASE_URL` or `DATABASE_URL`
+
+Local `.env` values are loaded automatically, but deployed environments like Render should still use dashboard env vars.
+
+### 3) Run the server
 ```bash
 python -m flask --app app run --debug
 # or (if you prefer):
@@ -81,6 +91,11 @@ Open: http://127.0.0.1:5000
   - `postgres://...` → `postgresql://...`
   - `postgresql://...` → `postgresql+psycopg://...`
 
+- `NEON_DATABASE_URL`
+  Optional alias for `DATABASE_URL` when using an external Neon database.
+  If both are set, `NEON_DATABASE_URL` takes precedence.
+  The app will also add `sslmode=require` and `channel_binding=require` for Neon hosts if they are missing.
+
 - `FACEID_STORE_DIR` (recommended)
   Directory where FaceID profiles are stored (JSON).  
   Example for Render:
@@ -97,6 +112,7 @@ Open: http://127.0.0.1:5000
 3) Start command: `gunicorn wsgi:app`
 4) Attach a **Postgres** instance (optional, but recommended)  
    - If attached, Render will set `DATABASE_URL`
+   - If you use **Neon** instead, set either `DATABASE_URL` or `NEON_DATABASE_URL` in the Render dashboard to your Neon pooled connection string
 5) Set env vars:
    - `SECRET_KEY` (required)
    - `FACEID_STORE_DIR=/tmp/faceid_store` (recommended)
