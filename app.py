@@ -255,3 +255,8 @@ def create_app() -> Flask:
         return redirect(url_for("index"))
 
     return app
+
+
+# Export a module-level WSGI app so both `gunicorn app:app` and
+# `flask --app app run` work in deployment environments.
+app = create_app()
